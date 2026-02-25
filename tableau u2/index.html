@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Production U2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f0f2f5; padding: 24px; color: #1a1a1a; }
+
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .date { font-size: 22px; font-weight: 800; color: #1e6abf; }
+  .file-info { font-size: 12px; color: #22c55e; font-weight: 600; margin-top: 4px; }
+  .last-update { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .clear-btn { display: none; font-size: 11px; color: #dc2626; background: none; border: none; cursor: pointer; text-decoration: underline; margin-top: 3px; font-family: 'Inter', sans-serif; padding: 0; }
+
+  .import-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: #1e4d8c; color: white;
+    font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700;
+    padding: 13px 26px; border-radius: 10px; border: none; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(30,77,140,0.35);
+    transition: background 0.2s, transform 0.1s;
+  }
+  .import-btn:hover { background: #163a6e; transform: translateY(-1px); }
+  .import-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .loading { display: none; align-items: center; gap: 8px; font-size: 13px; color: #888; font-weight: 600; margin-top: 8px; }
+  .spinner { width: 16px; height: 16px; border: 3px solid #e5e7eb; border-top-color: #1e4d8c; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .top-row { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .box { background: white; border-radius: 10px; padding: 18px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+  .kpi-box { min-width: 230px; }
+  .kpi-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .kpi-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f3f4f6; }
+  .kpi-row:last-child { border-bottom: none; }
+  .kpi-lbl { font-size: 13px; color: #555; font-weight: 500; }
+  .kpi-val { font-size: 20px; font-weight: 800; color: #1e3a5f; }
+
+  .right-col { display: flex; flex-direction: column; gap: 16px; flex: 1; min-width: 280px; }
+  .obj-box { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .obj-item .obj-lbl { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .obj-item .obj-val { font-size: 34px; font-weight: 800; color: #1e3a5f; line-height: 1; }
+  .obj-item .obj-val.yellow { background: #fef08a; border: 2px solid #dc2626; padding: 2px 10px; border-radius: 6px; }
+  .vdiv { width: 1px; height: 48px; background: #e5e7eb; }
+
+  .bo-wrap { display: flex; flex-direction: column; gap: 7px; }
+  .bo-pill { border-radius: 7px; padding: 7px 14px; font-size: 13px; font-weight: 700; }
+  .bo-bancs  { background: #fef2f2; border: 2px solid #dc2626; color: #dc2626; }
+  .bo-tables { background: #fff7ed; border: 2px solid #ea580c; color: #ea580c; }
+  .bo-pill .big { font-size: 21px; }
+
+  .charge-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .charge-row:last-child { margin-bottom: 0; }
+  .charge-lbl { font-size: 13px; font-weight: 600; color: #555; width: 58px; }
+  .charge-num { background: #dbeafe; color: #1e40af; font-weight: 800; font-size: 20px; padding: 4px 12px; border-radius: 6px; min-width: 54px; text-align: center; }
+  .charge-detail { font-size: 13px; color: #777; }
+  .charge-detail b { color: #1e3a5f; }
+
+  .tbl-wrap { background: white; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 16px; overflow-x: auto; }
+  .tbl-date { font-size: 15px; font-weight: 700; color: #1e6abf; margin-bottom: 12px; }
+  table.mt { width: 100%; border-collapse: collapse; min-width: 580px; }
+  table.mt th { background: #93c5fd; color: #1e3a5f; font-size: 12px; font-weight: 700; padding: 9px 12px; text-align: center; border: 1px solid white; }
+  table.mt th.dk { background: #1e3a5f; color: white; }
+  table.mt th.wh { background: white; border: none; }
+  table.mt th.gr { background: #2d6a2d; color: white; }
+  table.mt td { padding: 8px 12px; text-align: center; border: 1px solid #e5e7eb; font-size: 14px; }
+  .rc  td { background: #1e4d8c; color: white; font-weight: 800; font-style: italic; font-size: 17px; }
+  .rc  td.gr { background: #3a7d3a; }
+  .rc  td.sp { background: #f8f9fa; }
+  .rsub td { background: #f8f9fa; color: #777; font-size: 12px; }
+  .rh  td { background: #1a1a1a; color: white; font-weight: 800; font-style: italic; font-size: 17px; }
+  .rh  td.gr { background: #3a7d3a; }
+  .rh  td.sp { background: #f8f9fa; }
+  .rg  td { background: #3a7d3a; color: white; font-weight: 700; font-style: italic; font-size: 15px; }
+  .rb  td { background: #1a1a1a; color: #a8ff78; font-weight: 800; font-style: italic; font-size: 15px; }
+  .rb  td.wh { color: white; font-style: normal; font-size: 12px; font-weight: 600; }
+  .rb  td.gv { color: #a8ff78; font-size: 19px; font-weight: 800; }
+  .sp-row td { height: 8px; background: #f8f9fa; border: none; }
+
+  .coll-wrap { background: white; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .coll-wrap h3 { font-size: 12px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .coll-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+  .coll-card { background: #f0f4ff; border: 2px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; text-align: center; min-width: 78px; }
+  .coll-name { font-size: 12px; font-weight: 700; color: #1e3a5f; margin-bottom: 3px; }
+  .coll-num  { font-size: 26px; font-weight: 800; color: #1e4d8c; line-height: 1; }
+  .coll-sub  { font-size: 10px; color: #777; margin-top: 4px; line-height: 1.4; }
+  .chips { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .chip { padding: 5px 13px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+  .ci { background: #dbeafe; color: #1e40af; }
+  .cp { background: #dcfce7; color: #166534; }
+  .cr { background: #fee2e2; color: #991b1b; }
+  .ch { background: #fef9c3; color: #854d0e; }
+
+  .dashboard { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="date" id="dateLabel">📅 Production U2</div>
+    <div class="file-info" id="fileInfo"></div>
+    <div class="last-update" id="lastUpdate"></div>
+    <button class="clear-btn" id="clearBtn" onclick="clearData()">🗑 Effacer les données sauvegardées</button>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+      <label class="import-btn" for="fileInput">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Importer le fichier Excel
+      </label>
+      <button id="exportBtn" onclick="exportSnapshot()" style="display:none;align-items:center;gap:10px;background:#16a34a;color:white;font-family:'Inter',sans-serif;font-size:15px;font-weight:700;padding:13px 26px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(22,163,74,0.35);transition:background 0.2s;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:20px;height:20px;">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Exporter snapshot
+      </button>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls" style="display:none">
+    <div class="loading" id="loading"><div class="spinner"></div> Lecture en cours…</div>
+  </div>
+</div>
+
+<div id="emptyMsg" style="text-align:center;padding:80px 20px;color:#bbb;">
+  <div style="font-size:52px;margin-bottom:16px;">📂</div>
+  <div style="font-size:18px;font-weight:700;color:#888;margin-bottom:8px;">Aucune donnée chargée</div>
+  <div style="font-size:14px;">Clique sur <strong style="color:#1e4d8c;">Importer le fichier Excel</strong> pour afficher le tableau de bord</div>
+</div>
+
+<div class="dashboard" id="dashboard">
+  <div class="top-row">
+    <div class="box kpi-box">
+      <div class="kpi-title">Étiquettes</div>
+      <div class="kpi-row"><span class="kpi-lbl">Tables passant au mont.</span><span class="kpi-val" id="kMont">—</span></div>
+      <div class="kpi-row"><span class="kpi-lbl">Étiquettes Service</span><span class="kpi-val" id="kServ">—</span></div>
+      <div class="kpi-row"><span class="kpi-lbl">Tables dern. cédule</span><span class="kpi-val" id="kCedT">—</span></div>
+      <div class="kpi-row"><span class="kpi-lbl">Bancs dern. cédule</span><span class="kpi-val" id="kCedB">—</span></div>
+      <div class="kpi-row"><span class="kpi-lbl">Étiquettes BO</span><span class="kpi-val" style="color:#dc2626" id="kBO">—</span></div>
+    </div>
+
+    <div class="right-col">
+      <div class="box obj-box">
+        <div class="obj-item">
+          <div class="obj-lbl">Objectif</div>
+          <div class="obj-val" id="oObj">—</div>
+        </div>
+        <div class="vdiv"></div>
+        <div class="obj-item">
+          <div class="obj-lbl">Dernière cédule</div>
+          <div class="obj-val yellow" id="oCed">—</div>
+        </div>
+        <div class="vdiv"></div>
+        <div class="bo-wrap">
+          <div class="bo-pill bo-bancs">🪑 Bancs B.O. : <span class="big" id="boBancs">—</span></div>
+          <div class="bo-pill bo-tables">🪵 Tables B.O. : <span class="big" id="boTables">—</span></div>
+        </div>
+      </div>
+
+      <div class="box">
+        <div class="kpi-title" style="margin-bottom:12px;">Charge au collage &amp; CNC</div>
+        <div class="charge-row">
+          <div class="charge-lbl">Collage</div>
+          <div class="charge-num" id="cCollN">—</div>
+          <div class="charge-detail">→ <b id="cCollE">—</b> étiq. · <b id="cCollM">—</b> min</div>
+        </div>
+        <div class="charge-row">
+          <div class="charge-lbl">CNC</div>
+          <div class="charge-num" id="cCncN">—</div>
+          <div class="charge-detail">→ <b id="cCncE">—</b> étiq. · <b id="cCncM">—</b> min</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+    <div class="tbl-date" id="tDate">—</div>
+    <table class="mt">
+      <thead>
+        <tr>
+          <th class="wh"></th>
+          <th>Bancs</th><th>Bases / Table vitrée</th><th>F</th>
+          <th>1 ext</th><th>2 ext</th><th>3 ext</th>
+          <th class="gr">TOTAL</th><th class="wh"></th>
+          <th class="dk">Equiv Nb d'OP pour tables</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="coll-wrap">
+    <h3>📦 Tables &amp; Bancs par collection</h3>
+    <div class="coll-grid" id="collGrid"></div>
+    <div class="chips" id="chips"></div>
+  </div>
+</div>
+
+<script>
+const BANC_TYPES  = ['BNN','SNS','SNF'];
+const STATUTS_OK  = ['Prod','Init','RUPT','HOLD'];
+
+// ══ Google Apps Script config ══
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw7DJXfHd6zgI3sd0AG3W9_pQhlNtaSjQrrkPUPT3S2P43YSnc1_R1YbkGEUpLh3Ep6/exec';
+
+async function saveOnline(data) {
+  const json = encodeURIComponent(JSON.stringify(data));
+  // Utilise une image invisible pour contourner le CORS (no-cors trick)
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    window._gasCallback = () => { document.head.removeChild(script); resolve(); };
+    script.src = GAS_URL + '?action=save&data=' + json + '&callback=_gasCallback';
+    document.head.appendChild(script);
+    // Timeout fallback
+    setTimeout(resolve, 5000);
+  });
+}
+
+async function loadOnline() {
+  try {
+    const res = await fetch(GAS_URL + '?action=load&t=' + Date.now());
+    const text = await res.text();
+    if (!text || text.trim() === '' || text === 'null') return null;
+    return JSON.parse(text);
+  } catch(e) { return null; }
+}
+
+// ══ AU CHARGEMENT ══
+window.addEventListener('DOMContentLoaded', async function() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('loading').querySelector('div + div').textContent || null;
+  document.getElementById('loading').innerHTML = '<div class="spinner"></div> Chargement des données…';
+
+  const d = await loadOnline();
+  document.getElementById('loading').style.display = 'none';
+
+  if (d && d.dateStr) {
+    renderDashboard(d);
+    document.getElementById('emptyMsg').style.display  = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('fileInfo').textContent    = '✅ ' + (d.fileName || 'Données en ligne');
+    document.getElementById('lastUpdate').textContent  = '🌐 Mis à jour le : ' + (d.savedAt || '—');
+    document.getElementById('clearBtn').style.display  = 'block';
+  }
+});
+
+function clearData() {
+  if (!confirm('Effacer les données sauvegardées en ligne ?')) return;
+  location.reload();
+}
+
+// ══ IMPORT FICHIER ══
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('loading').innerHTML = '<div class="spinner"></div> Lecture en cours…';
+  document.getElementById('emptyMsg').style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = async function(evt) {
+    try {
+      const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
+      const r2 = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[1]], { header:1, defval:'' });
+
+      const d = buildData(r2);
+      d.fileName = file.name;
+      d.savedAt  = new Date().toLocaleString('fr-CA');
+
+      // Sauvegarder EN LIGNE
+      document.getElementById('loading').innerHTML = '<div class="spinner"></div> Sauvegarde en ligne…';
+      await saveOnline(d);
+
+      renderDashboard(d);
+      document.getElementById('loading').style.display  = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('emptyMsg').style.display  = 'none';
+      document.getElementById('fileInfo').textContent    = '✅ ' + file.name;
+      document.getElementById('lastUpdate').textContent  = '🌐 Sauvegardé en ligne le : ' + d.savedAt;
+      document.getElementById('clearBtn').style.display  = 'block';
+    } catch(err) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('emptyMsg').style.display = 'block';
+      document.getElementById('emptyMsg').innerHTML =
+        '<div style="font-size:40px;margin-bottom:12px;">❌</div>' +
+        '<div style="font-size:15px;font-weight:700;color:#dc2626;">Erreur : ' + err.message + '</div>';
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  this.value = '';
+});
+
+// ══ EXTRACTION DES DONNÉES (onglet 2) ══
+function num(v) { return (v === '' || v === null || v === undefined) ? 0 : Number(v) || 0; }
+
+function buildData(r2) {
+  const h = r2;
+
+  // Date
+  let dateStr = new Date().toISOString().split('T')[0];
+  const rawDate = h[0] && h[0][1];
+  if (rawDate) {
+    if (typeof rawDate === 'number' && rawDate > 40000) {
+      const d = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+      dateStr = d.toISOString().split('T')[0];
+    } else if (typeof rawDate === 'string' && rawDate.match(/\d{4}/)) {
+      dateStr = rawDate.split('T')[0];
+    }
+  }
+
+  // KPIs header
+  const objectif      = num(h[0]&&h[0][52]) || 155;
+  const dernCed       = (h[1]&&h[1][52]) ? String(Math.round(num(h[1][52]))) : '—';
+  const tablesAuMont  = num(h[2]&&h[2][3]);
+  const etiqService   = num(h[3]&&h[3][3]);
+  const collageNb     = num(h[4]&&h[4][50]);
+  const collageMin    = num(h[4]&&h[4][52]);
+  const tablesLastCed = num(h[5]&&h[5][3]);
+  const bancsLastCed  = num(h[6]&&h[6][3]);
+  const cncNb         = num(h[7]&&h[7][50]);
+  const cncMin        = num(h[7]&&h[7][52]);
+  const etiqBO        = num(h[8]&&h[8][51]);
+
+  // Tableau Canadel / HD
+  const cndO  = { b:num(h[17]&&h[17][49]), bas:num(h[17]&&h[17][50]), f:num(h[17]&&h[17][51]), e1:num(h[17]&&h[17][53]), e2:num(h[17]&&h[17][54]), e3:num(h[17]&&h[17][55]), tot:num(h[17]&&h[17][56]) };
+  const cndOP = h[17]&&h[17][58] ? Number(h[17][58]) : null; // OP exact depuis Excel
+  const cndM  = { b:num(h[18]&&h[18][49]), bas:num(h[18]&&h[18][50]), f:num(h[18]&&h[18][51]), e1:num(h[18]&&h[18][53]), e2:num(h[18]&&h[18][54]), e3:num(h[18]&&h[18][55]), tot:num(h[18]&&h[18][56]) };
+  const hdO   = { b:num(h[21]&&h[21][49]), bas:num(h[21]&&h[21][50]), f:num(h[21]&&h[21][51]), e1:num(h[21]&&h[21][53]), e2:num(h[21]&&h[21][54]), e3:num(h[21]&&h[21][55]), tot:num(h[21]&&h[21][56]) };
+  const hdOP  = h[21]&&h[21][58] ? Number(h[21][58]) : null; // OP exact depuis Excel
+  const hdM   = { b:num(h[22]&&h[22][49]), bas:num(h[22]&&h[22][50]), f:num(h[22]&&h[22][51]), e1:num(h[22]&&h[22][53]), e2:num(h[22]&&h[22][54]), e3:num(h[22]&&h[22][55]), tot:num(h[22]&&h[22][56]) };
+
+  const bancsLigne = num(h[23]&&h[23][49]);
+  const btf        = num(h[23]&&h[23][54]); // ligne 24 col 54
+  const mis        = num(h[23]&&h[23][56]); // ligne 24 col 56
+  const bas        = num(h[24]&&h[24][51]);
+  const beatHD     = num(h[25]&&h[25][51]);
+  const totalOP    = h[25]&&h[25][58] ? Number(h[25][58]) : 0;
+
+  // Ordres (lignes 31+) — col6=Statut, col51=Collection, col52=Type, col72=StatuBO
+  let boBancs = 0, boTables = 0;
+  const sc = { Init:0, Prod:0, RUPT:0, HOLD:0 };
+  const cc = {};
+
+  const rows = r2.slice(31).filter(r => r[0] !== '' && r[0] !== null && r[0] !== undefined);
+  for (const r of rows) {
+    const statut = String(r[6]||'').trim();
+    if (!STATUTS_OK.includes(statut)) continue;
+    const type   = String(r[52]||'').trim();
+    const coll   = String(r[51]||'').trim();
+    const isBO   = String(r[72]||'').trim() === '1';
+    const isBanc = BANC_TYPES.includes(type);
+    const isBas  = type === 'BAS';
+
+    sc[statut]++;
+
+    // Exclure les BAS des collections
+    if (coll && !isBas) {
+      if (!cc[coll]) cc[coll] = { tables:0, bancs:0, bo:0 };
+      isBanc ? cc[coll].bancs++ : cc[coll].tables++;
+      if (isBO) cc[coll].bo++;
+    }
+    if (isBO) { isBanc ? boBancs++ : boTables++; }
+  }
+
+  return { dateStr, objectif, dernCed, tablesAuMont, etiqService, tablesLastCed, bancsLastCed,
+           etiqBO, collageNb, collageMin, cncNb, cncMin,
+           cndO, cndOP, cndM, hdO, hdOP, hdM, bancsLigne, btf, mis, bas, beatHD, totalOP,
+           boBancs, boTables, sc, cc };
+}
+
+// ══ RENDU (DOM) ══
+function renderDashboard(d) {
+  const cndOP  = d.cndOP ? Number(d.cndOP).toFixed(1) : (d.cndO.tot > 0 ? (d.cndO.tot / 30.33).toFixed(1) : '—');
+  const hdOP   = d.hdOP  ? Number(d.hdOP).toFixed(1)  : (d.hdO.tot  > 0 ? (d.hdO.tot  / 21.67).toFixed(1) : '—');
+  const beatHDf = d.beatHD  > 0 ? d.beatHD.toFixed(1) : '—';
+  const totalOPf = d.totalOP > 0 ? d.totalOP.toFixed(1) : '—';
+
+  document.getElementById('dateLabel').textContent = '📅 ' + d.dateStr;
+  document.getElementById('tDate').textContent     = d.dateStr;
+
+  document.getElementById('kMont').textContent  = d.tablesAuMont  || '—';
+  document.getElementById('kServ').textContent  = d.etiqService   || '—';
+  document.getElementById('kCedT').textContent  = d.tablesLastCed || '—';
+  document.getElementById('kCedB').textContent  = d.bancsLastCed  || '—';
+  document.getElementById('kBO').textContent    = d.etiqBO        || (d.boBancs + d.boTables);
+
+  document.getElementById('oObj').textContent     = d.objectif;
+  document.getElementById('oCed').textContent     = d.dernCed;
+  document.getElementById('boBancs').textContent  = d.boBancs;
+  document.getElementById('boTables').textContent = d.boTables;
+
+  document.getElementById('cCollN').textContent = d.collageNb  || '—';
+  document.getElementById('cCollE').textContent = d.collageNb  || '—';
+  document.getElementById('cCollM').textContent = d.collageMin || '—';
+  document.getElementById('cCncN').textContent  = d.cncNb      || '—';
+  document.getElementById('cCncE').textContent  = d.cncNb      || '—';
+  document.getElementById('cCncM').textContent  = d.cncMin     || '—';
+
+  const o = d.cndO, m = d.cndM, ho = d.hdO, hm = d.hdM;
+  document.getElementById('tbody').innerHTML = `
+    <tr class="sp-row"><td colspan="10"></td></tr>
+    <tr class="rc">
+      <td>Canadel</td><td>${o.b}</td><td>${o.bas}</td><td>${o.f}</td>
+      <td>${o.e1}</td><td>${o.e2}</td><td>${o.e3}</td>
+      <td class="gr">${o.tot}</td><td class="sp"></td><td class="gr">${cndOP}</td>
+    </tr>
+    <tr class="rsub">
+      <td></td><td>${m.b}</td><td>${m.bas}</td><td>${m.f}</td>
+      <td>${m.e1}</td><td>${m.e2}</td><td>${m.e3}</td>
+      <td>${m.tot}</td><td></td><td></td>
+    </tr>
+    <tr class="sp-row"><td colspan="10"></td></tr>
+    <tr class="rh">
+      <td>HD</td><td>${ho.b}</td><td>${ho.bas}</td><td>${ho.f}</td>
+      <td>${ho.e1}</td><td>${ho.e2}</td><td>${ho.e3}</td>
+      <td class="gr">${ho.tot}</td><td class="sp"></td><td class="gr">${hdOP}</td>
+    </tr>
+    <tr class="rsub">
+      <td></td><td>${hm.b}</td><td>${hm.bas}</td><td>${hm.f}</td>
+      <td>${hm.e1}</td><td>${hm.e2}</td><td>${hm.e3}</td>
+      <td>${hm.tot}</td><td></td><td></td>
+    </tr>
+    <tr class="rg">
+      <td></td><td>${d.bancsLigne}</td><td></td><td></td>
+      <td colspan="2">BTF: ${d.btf}</td><td colspan="2">MIS: ${d.mis}</td>
+      <td></td><td>0.1</td>
+    </tr>
+    <tr class="rg">
+      <td></td><td colspan="2">BAS:</td><td>${d.bas}</td><td colspan="6"></td>
+    </tr>
+    <tr class="rb">
+      <td></td><td colspan="2">Beat lancement HD</td><td>${beatHDf}</td>
+      <td colspan="2">Min</td><td colspan="2"></td>
+      <td class="wh">Total OP</td><td class="gv">${totalOPf}</td>
+    </tr>`;
+
+  const sorted = Object.entries(d.cc).sort((a,b) => (b[1].tables+b[1].bancs)-(a[1].tables+a[1].bancs));
+  document.getElementById('collGrid').innerHTML = sorted.map(([nm, v]) => `
+    <div class="coll-card">
+      <div class="coll-name">${nm}</div>
+      <div class="coll-num">${v.tables + v.bancs}</div>
+      <div class="coll-sub">
+        ${v.tables} tables · ${v.bancs} bancs
+        ${v.bo > 0 ? `<br><span style="color:#dc2626;font-weight:700;">${v.bo} B.O.</span>` : ''}
+      </div>
+    </div>`).join('');
+
+  const s = d.sc;
+  document.getElementById('chips').innerHTML = `
+    <span class="chip ci">🔵 Init : ${s.Init}</span>
+    <span class="chip cp">🟢 Prod : ${s.Prod}</span>
+    <span class="chip cr">🔴 RUPT : ${s.RUPT}</span>
+    <span class="chip ch">🟡 HOLD : ${s.HOLD}</span>`;
+}
+</script>
+</body>
+</html>
