@@ -207,27 +207,37 @@
 const BANC_TYPES  = ['BNN','SNS','SNF'];
 const STATUTS_OK  = ['Prod','Init','RUPT','HOLD'];
 
-// ══ Google Apps Script config ══
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbw7DJXfHd6zgI3sd0AG3W9_pQhlNtaSjQrrkPUPT3S2P43YSnc1_R1YbkGEUpLh3Ep6/exec';
+// ══ GitHub API config ══
+const GITHUB_TOKEN = atob('Z2hwXzNjbkVrRUJEeEd2ZU9yQ3NpbHNJR3RQOUJuTUxEYTNpZ1BxMA==');
+const GITHUB_REPO  = 'alexandrejutras1990-web/production-u2';
+const GITHUB_FILE  = 'data.json';
 
 async function saveOnline(data) {
-  const json = encodeURIComponent(JSON.stringify(data));
-  // Utilise une image invisible pour contourner le CORS (no-cors trick)
-  return new Promise((resolve) => {
-    const script = document.createElement('script');
-    window._gasCallback = () => { document.head.removeChild(script); resolve(); };
-    script.src = GAS_URL + '?action=save&data=' + json + '&callback=_gasCallback';
-    document.head.appendChild(script);
-    // Timeout fallback
-    setTimeout(resolve, 5000);
+  // Récupérer le SHA actuel du fichier (requis pour update)
+  let sha = null;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`, {
+      headers: { 'Authorization': 'token ' + GITHUB_TOKEN }
+    });
+    if (r.ok) { const j = await r.json(); sha = j.sha; }
+  } catch(e) {}
+
+  const body = { message: 'Mise à jour données production', content: btoa(unescape(encodeURIComponent(JSON.stringify(data)))) };
+  if (sha) body.sha = sha;
+
+  await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`, {
+    method: 'PUT',
+    headers: { 'Authorization': 'token ' + GITHUB_TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
   });
 }
 
 async function loadOnline() {
   try {
-    const res = await fetch(GAS_URL + '?action=load&t=' + Date.now());
+    const res = await fetch(`https://raw.githubusercontent.com/${GITHUB_REPO}/main/${GITHUB_FILE}?t=${Date.now()}`);
+    if (!res.ok) return null;
     const text = await res.text();
-    if (!text || text.trim() === '' || text === 'null') return null;
+    if (!text || text.trim() === '') return null;
     return JSON.parse(text);
   } catch(e) { return null; }
 }
@@ -235,7 +245,6 @@ async function loadOnline() {
 // ══ AU CHARGEMENT ══
 window.addEventListener('DOMContentLoaded', async function() {
   document.getElementById('loading').style.display = 'flex';
-  document.getElementById('loading').querySelector('div + div').textContent || null;
   document.getElementById('loading').innerHTML = '<div class="spinner"></div> Chargement des données…';
 
   const d = await loadOnline();
